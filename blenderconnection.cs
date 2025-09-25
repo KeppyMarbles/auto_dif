@@ -68,6 +68,11 @@ function BlenderConnection::recieveCommand(%this, %msg) {
 }
 
 function BlenderConnection::allocateDIFs(%this, %folderPath, %dif_name, %amt) {
+  if(!isObject(MissionGroup)) {
+    error("User is not in a mission");
+    return;
+  }
+  
   // Save the marble pos in case we fall through the interior
   %this.marbleTransform = LocalClientConnection.player.getTransform();
   
@@ -105,8 +110,8 @@ function BlenderConnection::allocateDIFs(%this, %folderPath, %dif_name, %amt) {
 }
 
 function BlenderConnection::addNewInteriors(%this) {
-  if(!isObject(BlenderInterior_g) || !$Editor::Enabled || lb()) {
-    error("Tried to add interiors outside of an editor setting");
+  if(!isObject(BlenderInterior_g)) {
+    error("Blender interior group was not found");
     return;
   }
   
