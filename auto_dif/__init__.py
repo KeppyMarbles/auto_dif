@@ -7,6 +7,7 @@ import os
 import shutil
 import tempfile
 
+
 bl_info = {
     "name": "Auto DIF",
     "author": "Keppy",
@@ -16,6 +17,7 @@ bl_info = {
     "doc_url": "",
     "category": "Import-Export"
 }
+
 
 class AutoDIFPreferences(bpy.types.AddonPreferences):
     bl_idname = __name__
@@ -97,12 +99,10 @@ class EXPORT_PT_settings(bpy.types.Panel):
 class DIFServer:
     _instance = None
 
-
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
-    
 
     def __init__(self, port=7654):
         if hasattr(self, "_initialized"):
@@ -117,20 +117,16 @@ class DIFServer:
 
         self.log(f"Creating server")
 
-
     def __del__(self):
         self.stop()
-
 
     @property
     def export_on_save(self):
         return bpy.context.preferences.addons[__name__].preferences.export_on_save
-    
 
     @property
     def game_directory(self):
         return bpy.context.preferences.addons[__name__].preferences.game_dir
-    
     
     @property
     def interiors_relative_directory(self):
@@ -139,19 +135,16 @@ class DIFServer:
         else:
             return bpy.context.scene.autodif_export_settings.export_dir
     
-    
     @property
     def interiors_directory(self):
         if self.interiors_relative_directory:
             return os.path.join(self.game_directory, *self.interiors_relative_directory.split("/"))
         else:
             return None
-        
 
     def log(self, msg):
         now = datetime.datetime.now().strftime("%H:%M:%S.%f")
         print(f"[{now}] (AutoDIF) {msg}")
-
 
     def send_command(self, *args):
         """ Sends a BlenderConnection method with arguments for the connected game to execute """
@@ -168,7 +161,6 @@ class DIFServer:
             self.current_conn.sendall((message + "\n").encode())
             self.log(f"Sent message: {message}")
 
-
     def recieve_command(self, message):
         """ Processes a string sent from BlenderConnection, executing a DIFServer method with arguments """
         self.log(f"Got message: {message}")
@@ -176,7 +168,6 @@ class DIFServer:
         func = getattr(self, query[0])
         func(*query[1:])
 
-    
     def install_difs(self):
         """ Moves the exported interior files into the game directory and tells the game to add them to the level """
         for dif_path in self.difs_to_install:
@@ -186,7 +177,6 @@ class DIFServer:
             self.log(f"Moving {interior_name} to {destination}...")
 
         self.send_command("addNewInteriors")
-
 
     def export_difs(self):
         """ Exports the scene as DIF into a temp folder and tells the game to get ready for those files """
@@ -232,7 +222,6 @@ class DIFServer:
         else:
             self.send_command(f"allocateDIFs", self.interiors_relative_directory, difname, i)
 
-
     def handle_client(self):
         """ Called when a connection from the game is made """
         with self.current_conn:
@@ -254,7 +243,6 @@ class DIFServer:
                 except Exception as error:
                     self.log(traceback.format_exc())
                     self.send_command("notifyError", f"{str(error)}")
-
 
     def server_loop(self):
         """ Listens for connections from the game """
@@ -278,14 +266,12 @@ class DIFServer:
                 self.current_conn = None
                 self.log("Server stopped")
 
-
     def start(self):
         if self.server_thread and self.server_thread.is_alive():
             self.stop()
 
         self.server_thread = threading.Thread(target=self.server_loop, daemon=True)
         self.server_thread.start()
-
 
     def stop(self):
         if self.current_conn:
