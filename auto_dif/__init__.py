@@ -33,11 +33,24 @@ class AutoDIFPreferences(bpy.types.AddonPreferences):
         default=True,
     )
 
+    bspmode: bpy.props.EnumProperty(
+        items=[
+            ("Fast", "Fast", ""),
+            ("Exhaustive", "Exhaustive", ""),
+            ("None", "None", "")
+        ],
+        name="BSP Algorithm",
+        description="The algorithm used for building the BSP Tree of the DIF.",
+        default="None"
+    )
+
     def draw(self, context):
         layout = self.layout
         layout.prop(self, "game_dir")
         sublayout = layout.row()
         sublayout.prop(self, "export_on_save")
+        sublayout = layout.row()
+        sublayout.prop(self, "bspmode")
         
 
 class EXPORT_OT_manual(bpy.types.Operator):
@@ -121,12 +134,8 @@ class DIFServer:
         self.stop()
 
     @property
-    def export_on_save(self):
-        return bpy.context.preferences.addons[__name__].preferences.export_on_save
-
-    @property
-    def game_directory(self):
-        return bpy.context.preferences.addons[__name__].preferences.game_dir
+    def prefs(self):
+        return bpy.context.preferences.addons[__name__].preferences
     
     @property
     def interiors_relative_directory(self):
@@ -138,7 +147,7 @@ class DIFServer:
     @property
     def interiors_directory(self):
         if self.interiors_relative_directory:
-            return os.path.join(self.game_directory, *self.interiors_relative_directory.split("/"))
+            return os.path.join(self.prefs.game_dir, *self.interiors_relative_directory.split("/"))
         else:
             return None
 
@@ -182,7 +191,7 @@ class DIFServer:
         """ Exports the scene as DIF into a temp folder and tells the game to get ready for those files """
 
         # Verify attributes
-        if not self.game_directory:
+        if not self.prefs.game_dir:
             raise Exception("Game directory not set. Check Preferences->Add-ons->Auto DIF.")
             
         if not self.interiors_relative_directory:
@@ -203,7 +212,7 @@ class DIFServer:
         outpath = os.path.join(outfolder, difname)
         self.log(f"Exporting difs to {outpath}...")
         bpy.ops.export_scene.dif(
-            bspmode="None",
+            bspmode=self.prefs.bspmode,
             filepath=outpath
         )
 
@@ -291,7 +300,7 @@ class DIFServer:
 
 def on_save(dummy):
     """ Called after the blend file is saved """
-    if server.export_on_save:
+    if server.prefs.export_on_save:
         if(server.current_conn):
             server.export_difs()
 
