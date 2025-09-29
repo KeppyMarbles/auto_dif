@@ -7,7 +7,6 @@ import os
 import shutil
 import tempfile
 
-
 bl_info = {
     "name": "Auto DIF",
     "author": "Keppy",
@@ -17,7 +16,6 @@ bl_info = {
     "doc_url": "",
     "category": "Import-Export"
 }
-
 
 class AutoDIFPreferences(bpy.types.AddonPreferences):
     bl_idname = __name__
@@ -55,29 +53,30 @@ class EXPORT_OT_manual(bpy.types.Operator):
             self.report({"ERROR"}, f"Export failed: No game connection")
             return {"CANCELLED"}
         return {"FINISHED"}
-        
-def export_menu_func(self, context):
-    self.layout.operator(EXPORT_OT_manual.bl_idname, text="To Marble Blast")
-    
+
 
 class ExportSettings(bpy.types.PropertyGroup):
     export_dir: bpy.props.EnumProperty(
         name="Export Directory",
         items=[
-            ("platinum/data/interiors_mbg/custom", "interiors_mbg/custom", "Marble Blast Gold directory"), #TODO platform agnostic?
-            ("platinum/data/interiors_mbp/custom", "interiors_mbp/custom", "Marble Blast Platinum directory"),
-            ("platinum/data/interiors_mbu/custom", "interiors_mbu/custom", "Marble Blast Ultra directory"),
-            ("platinum/data/interiors_pq/custom", "interiors_pq/custom", "PlatinumQuest directory"),
-            ("platinum/data/interiors/custom", "interiors/custom", ""),
-            ("platinum/data/multiplayer/interiors/custom", "multiplayer/interiors/custom", ""),
-            #("CUSTOM", "Custom Directory...", "")
+            ("platinum/data/interiors_mbg/custom", "platinum/data/interiors_mbg/custom", "MBG textures"),
+            ("platinum/data/interiors_mbp/custom", "platinum/data/interiors_mbp/custom", "MBP textures"),
+            ("platinum/data/interiors_mbu/custom", "platinum/data/interiors_mbu/custom", "MBU textures"),
+            ("platinum/data/interiors_pq/custom", "platinum/data/interiors_pq/custom", "PQ textures"),
+            ("platinum/data/interiors/custom", "platinum/data/interiors/custom", ""),
+            ("platinum/data/multiplayer/interiors/custom", "platinum/data/multiplayer/interiors/custom", ""),
+            ("CUSTOM", "Custom Directory...", "")
         ],
         description="Where the interiors should be saved",
     )
 
+    custom_export_dir: bpy.props.StringProperty(
+        name="Custom Directory",
+        default=""
+    )
+
 
 class EXPORT_PT_settings(bpy.types.Panel):
-    """Panel to adjust export path later"""
     bl_label = "AutoDIF Settings"
     bl_idname = "EXPORT_PT_settings"
     bl_space_type = "PROPERTIES"
@@ -87,9 +86,12 @@ class EXPORT_PT_settings(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         scene = context.scene
-        settings = scene.export_settings
+        settings = scene.autodif_export_settings
 
         layout.prop(settings, "export_dir")
+
+        if settings.export_dir == "CUSTOM":
+            layout.prop(settings, "custom_export_dir")
 
 
 class DIFServer:
@@ -132,13 +134,16 @@ class DIFServer:
     
     @property
     def interiors_relative_directory(self):
-        return bpy.context.scene.export_settings.export_dir
+        if(bpy.context.scene.autodif_export_settings.export_dir == "CUSTOM"):
+            return bpy.context.scene.autodif_export_settings.custom_export_dir
+        else:
+            return bpy.context.scene.autodif_export_settings.export_dir
     
     
     @property
     def interiors_directory(self):
         if self.interiors_relative_directory:
-            return os.path.join(self.game_directory, self.interiors_relative_directory) #TODO we may need to replace "/" with os path sep
+            return os.path.join(self.game_directory, *self.interiors_relative_directory.split("/"))
         else:
             return None
         
@@ -176,7 +181,7 @@ class DIFServer:
         """ Moves the exported interior files into the game directory and tells the game to add them to the level """
         for dif_path in self.difs_to_install:
             interior_name = os.path.basename(dif_path)
-            destination = os.path.join(self.interiors_directory, interior_name)
+            destination = os.path.join(self.interiors_directory, interior_name) 
             shutil.move(dif_path, destination)
             self.log(f"Moving {interior_name} to {destination}...")
 
@@ -188,13 +193,13 @@ class DIFServer:
 
         # Verify attributes
         if not self.game_directory:
-            raise Exception("Game directory not set")
+            raise Exception("Game directory not set. Check Preferences->Add-ons->Auto DIF.")
             
         if not self.interiors_relative_directory:
-            raise Exception("Interior folder wasn't set")
+            raise Exception("Interior folder wasn't set. Check Scene->AutoDIF Settings->Export Directory.")
         
-        if not os.path.exists(self.interiors_directory): #TODO what happens if the user doesn't do Reload FS?
-            raise Exception(f"Interior folder {self.interiors_relative_directory} does not exist. If it should, create it and use Reload FS in the console. If not, double check your game directory pref in Blender.")
+        if not os.path.exists(self.interiors_directory):
+            raise Exception(f"Interior folder '{self.interiors_directory}' does not exist. If it should, create it and use Reload FS in the console. If not, double check your game directory pref in Blender.")
         
         # Export the difs into a temp location
         outfolder = os.path.join(tempfile.gettempdir(), "auto_dif")
@@ -207,12 +212,12 @@ class DIFServer:
 
         outpath = os.path.join(outfolder, difname)
         self.log(f"Exporting difs to {outpath}...")
-        bpy.ops.export_scene.dif( #TODO handle case of .dif export not existing?
+        bpy.ops.export_scene.dif(
             bspmode="None",
             filepath=outpath
         )
 
-        # Note the new files and tell PQ to allocate them
+        # Note the new files and tell the game to allocate them
         i = 0
         self.difs_to_install.clear()
         while True:
@@ -305,10 +310,14 @@ def on_save(dummy):
             server.export_difs()
 
 
+def export_menu_func(self, context):
+    self.layout.operator(EXPORT_OT_manual.bl_idname, text="To Marble Blast")
+
+
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
-    bpy.types.Scene.export_settings = bpy.props.PointerProperty(type=ExportSettings)
+    bpy.types.Scene.autodif_export_settings = bpy.props.PointerProperty(type=ExportSettings)
 
     bpy.types.TOPBAR_MT_file_export.append(export_menu_func)
 
@@ -321,7 +330,7 @@ def register():
 def unregister():
     for cls in classes:
         bpy.utils.unregister_class(cls)
-    del bpy.types.Scene.export_settings
+    del bpy.types.Scene.autodif_export_settings
 
     bpy.types.TOPBAR_MT_file_export.remove(export_menu_func)
 
@@ -329,7 +338,7 @@ def unregister():
         bpy.app.handlers.save_post.remove(on_save)
 
     server.stop()
-    
+
 
 server = DIFServer()
 classes = (ExportSettings, EXPORT_PT_settings, AutoDIFPreferences, EXPORT_OT_manual)
