@@ -1,5 +1,5 @@
 # auto_dif
-A plugin to enable hot reloading of DIFs. Uses a local server to communicate Blender and a Marble Blast game. Requires [io_dif](https://github.com/RandomityGuy/io_dif) plugin.
+A Blender plugin to enable hot reloading of DIFs. Hosts a local server to communicate with a Marble Blast game. Requires [io_dif](https://github.com/RandomityGuy/io_dif).
 
 ## Setup
 
@@ -9,10 +9,11 @@ In PQ, hit the Connect Blender button in the editor.
 
 ## Features
 
-- File > Export > To Marble Blast: Exports the scene as DIF and automatically places it into the currently loaded mission.
+- File > Export > To Marble Blast: Operator that exports the scene as DIF and automatically places it into the currently loaded mission
   - Subobjects (such as those from [Marble Blast Toolkit](https://github.com/FlavoredSaucer/marbleBlastToolkit)) will be placed automatically
   - DIF splits (large, multi-file interiors) are handled properly
-- Export on Save: if enabled (default), the above will occur when saving the scene.
+  - Export Directory (Scene Property): determines where in the game directory the interior(s) should be placed
+- Export on Save (AutoDIF pref): if enabled, export will occur when saving the scene
 
 
 https://github.com/user-attachments/assets/834daa00-930c-4c40-a6a1-4d914f5f6acd
