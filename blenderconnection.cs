@@ -67,11 +67,15 @@ function BlenderConnection::recieveCommand(%this, %msg) {
   eval(%func @ ");");
 }
 
-function BlenderConnection::allocateDIFs(%this, %folderPath, %dif_name, %amt) {
+function BlenderConnection::allocateDIFs(%this, %folderPath, %dif_name, %amt) { //TODO should we check the mission to see if the dif is in use currently?
   if(!isObject(MissionGroup)) {
     error("User is not in a mission");
     return;
   }
+  
+  %this.pauseGame = $gamePaused;
+  if(%this.pauseGame)
+    $gamePaused = false;
   
   // Save the marble pos in case we fall through the interior
   %this.marbleTransform = LocalClientConnection.player.getTransform();
@@ -129,6 +133,8 @@ function BlenderConnection::addNewInteriors(%this) {
   
   // Put the marble back where it was in case it fell
   LocalClientConnection.player.setTransform(%this.marbleTransform);
+  
+  $gamePaused = %this.pauseGame;
 }
 
 function BlenderConnection::notifyError(%this, %message) {
