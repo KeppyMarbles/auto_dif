@@ -131,6 +131,7 @@ function BlenderConnection::addNewInteriors(%this) {
   for(%i = 0; %i < %this.newInteriorCount; %i++) {
     %obj = new InteriorInstance() {
       interiorFile = %this.newInteriors[%i];
+      locked = true;
     };
     echo("Added new interior" SPC %obj);
     BlenderInterior_g.add(%obj);
