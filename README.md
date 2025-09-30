@@ -22,6 +22,4 @@ https://github.com/user-attachments/assets/834daa00-930c-4c40-a6a1-4d914f5f6acd
 ## Important Info
 
 - Interior files will use the same name as the Blender project name (or "Untitled" if not saved). Keep project names unique if you want to prevent other interiors from being overwritten.
-- The game will not recieve commands from Blender if it is paused.
-- If Blender is connected, don't use the same interior file multiple times in the same mission since that isn't handled currently.
 - This should be compatible with other mods besides PQ, but you must ensure that the deleteFile function exists in your mod so that interiors can be refreshed properly.
