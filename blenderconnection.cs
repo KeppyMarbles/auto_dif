@@ -95,6 +95,13 @@ function BlenderConnection::allocateDIFs(%this, %folderPath, %dif_name, %amt) { 
       break;
     }
     if(%needsDelete) {
+      for(%j = 0; %j < MissionGroup.getCount(); %j++) {
+        %obj = MissionGroup.getObject(%j);
+        if(%obj.interiorFile $= %filePath) {
+          messageBoxOK("Error", %filePath SPC "is currently in use by another InteriorInstance! You'll have to delete it to continue a connection with Blender.");
+          return;
+        }
+      }
       echo("Deleting" SPC %filePath);
       deleteFile(%filePath);
     }
