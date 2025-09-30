@@ -197,9 +197,6 @@ class DIFServer:
         if not self.interiors_relative_directory:
             raise Exception("Interior folder wasn't set. Check Scene->AutoDIF Settings->Export Directory.")
         
-        if not os.path.exists(self.interiors_directory):
-            raise Exception(f"Interior folder '{self.interiors_directory}' does not exist. If it should, create it and use Reload FS in the console. If not, double check your game directory pref in Blender.")
-        
         # Export the difs into a temp location
         outfolder = os.path.join(tempfile.gettempdir(), "auto_dif")
         os.makedirs(outfolder, exist_ok=True)
