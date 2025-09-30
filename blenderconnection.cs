@@ -73,6 +73,7 @@ function BlenderConnection::allocateDIFs(%this, %folderPath, %dif_name, %amt) { 
     return;
   }
   
+  // Unpause the game so we don't crash
   %this.pauseGame = $gamePaused;
   if(%this.pauseGame)
     $gamePaused = false;
@@ -138,9 +139,23 @@ function BlenderConnection::addNewInteriors(%this) {
   }
   %this.newInteriorCount = 0;
   
+  // Start the moving platforms
+  for(%i = 0; %i < BlenderInterior_g.getCount(); %i++) {
+    %group = BlenderInterior_g.getObject(%i);
+    if(%group.getClassName() $= "SimGroup") {
+      for(%j = 0; %j < %group.getCount(); %j++) {
+        %mp = %group.getObject(%j);
+        if(%mp.getClassName() $= "PathedInterior") {
+          %mp.getDatablock().onMissionReset(%mp);
+        }
+      }
+    }
+  }
+  
   // Put the marble back where it was in case it fell
   LocalClientConnection.player.setTransform(%this.marbleTransform);
   
+  // Repause if necessary
   $gamePaused = %this.pauseGame;
 }
 
