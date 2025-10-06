@@ -154,7 +154,7 @@ function BlenderConnection::addNewInteriors(%this) {
       for(%j = 0; %j < %group.getCount(); %j++) {
         %mp = %group.getObject(%j);
         if(%mp.getClassName() $= "PathedInterior") {
-          %mp.getDatablock().onMissionReset(%mp);
+          %mp.getDatablock().schedule(50, "onMissionReset", %mp);
         }
       }
     }
