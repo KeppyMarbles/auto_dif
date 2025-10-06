@@ -133,7 +133,14 @@ function BlenderConnection::addNewInteriors(%this) {
       interiorFile = %this.newInteriors[%i];
       locked = true;
     };
-    echo("Added new interior" SPC %obj);
+    
+    if(!isObject(%obj)) {
+      MessageBoxOK("Error", "The Interior was exported but not added. It may have been exported incorrectly or into the wrong directory.");
+      return;
+    }
+    else
+      echo("Added new interior" SPC %obj);
+    
     BlenderInterior_g.add(%obj);
     if(%i == 0)
       %obj.magicButton();
