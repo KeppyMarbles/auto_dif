@@ -334,24 +334,3 @@ def unregister():
 
 server = DIFServer()
 classes = (ExportSettings, EXPORT_PT_settings, AutoDIFPreferences, EXPORT_OT_manual)
-
-#TODO for some reason this only works if i don't open or create a new scene, just saving the one on open (i get an error in export dif)
-#on save doesn't appear to work sometimes, like when opening a new scene
-#the game is crashing sometimes, just had one loading back into test editor tools (i think this is due to hitting play multiple times on the auto dif level)
-
-#this could be compatible with other mods if it weren't for deleteFile only existing in pq
-#and i'm currently making use of MessageBoxOK (but i could do a small check that we're in pq)
-    #actually, messageboxok exists in mbg
-#we may need to ask the game about the ModPaths or just use /data/ folder to start (we could probably just use ~)
-    #upon inital connection, we could ask the game about the ModPaths and then use that for tilde replacement when checking files
-#need to add port pref to plugin
-
-#TODO use Path objects (from pathlib)?
-
-#weirdly i'm getting the context error when using connect to blender, but not when using export to PQ. Also, the on save doesn't always work
-
-#maybe investigate why some meshes are failing to save (and hence being skipped)
-    #seems that some meshes without materials don't save
-
-
-#note: make sure projects have unique names if you don't want things to be overwritten
