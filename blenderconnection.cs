@@ -25,12 +25,12 @@ function ConnectBlender() {
 }
 
 function BlenderConnection::onConnectFailed(%this) {
-  messageBoxOK("No connection", "Couldn't connect to Blender. Make sure you have the auto_dif plugin enabled."); //TODO add the link?
+  messageBoxYesNo("No connection", "This feature requires the auto_dif plugin enabled in Blender. Visit GitHub?", "gotoWebPage(\"https://github.com/KeppyMarbles/auto_dif\");");
   %this.delete();
 }
 
 function BlenderConnection::onDisconnect(%this) {
-  messageBoxOK("Blender Disconnected", "Blender was closed or an error occurred."); //TODO tell how to fix
+  messageBoxOK("Blender Disconnected", "Blender was closed or an error occurred.");
   %this.delete();
 }
 
@@ -67,7 +67,7 @@ function BlenderConnection::recieveCommand(%this, %msg) {
   eval(%func @ ");");
 }
 
-function BlenderConnection::allocateDIFs(%this, %folderPath, %dif_name, %amt) { //TODO should we check the mission to see if the dif is in use currently?
+function BlenderConnection::allocateDIFsPart1(%this, %folderPath, %dif_name, %amt) { //TODO should we check the mission to see if the dif is in use currently?
   if(!isObject(MissionGroup)) {
     error("User is not in a mission");
     return;
@@ -82,10 +82,16 @@ function BlenderConnection::allocateDIFs(%this, %folderPath, %dif_name, %amt) { 
   %this.marbleTransform = LocalClientConnection.player.getTransform();
   
   // Clear the interior and subobjects
+  echo("Resetting Blender group");
   while(isObject(BlenderInterior_g))
     BlenderInterior_g.delete();
   MissionGroup.add(new SimGroup(BlenderInterior_g));
   
+  // Wait a frame before updating the resources
+  %this.schedule(20, "allocateDIFsPart2", %folderPath, %dif_name, %amt);
+}
+
+function BlenderConnection::allocateDIFsPart2(%this, %folderPath, %dif_name, %amt) {
   // Delete the old difs and allocate the new ones in the filesystem
   for(%i = 0; true; %i++) {
     %filePath = %folderPath @ "/" @ %dif_name @ %i @ ".dif";
@@ -121,17 +127,28 @@ function BlenderConnection::allocateDIFs(%this, %folderPath, %dif_name, %amt) { 
   %this.sendCommand("install_difs");
 }
 
+function BlenderConnection::processGroup(%this, %group) {
+  // Lock everything and start MPs
+  for(%i = 0; %i < %group.getCount(); %i++) {
+    %obj = %group.getObject(%i);
+    if(%obj.getClassName() $= "PathedInterior")
+      %obj.getDatablock().schedule(50, "onMissionReset", %obj);
+    if(%obj.getClassName() $= "SimGroup" || %obj.getClassName() $= "Path")
+      %this.processGroup(%obj);
+    else
+      %obj.locked = true;
+  }
+}
+
 function BlenderConnection::addNewInteriors(%this) {
   if(!isObject(BlenderInterior_g)) {
     error("Blender interior group was not found");
     return;
   }
-  
   // Add in the interiors using the cached filepaths
   for(%i = 0; %i < %this.newInteriorCount; %i++) {
     %obj = new InteriorInstance() {
       interiorFile = %this.newInteriors[%i];
-      locked = true;
     };
     
     if(!isObject(%obj)) {
@@ -146,19 +163,7 @@ function BlenderConnection::addNewInteriors(%this) {
       %obj.magicButton();
   }
   %this.newInteriorCount = 0;
-  
-  // Start the moving platforms
-  for(%i = 0; %i < BlenderInterior_g.getCount(); %i++) {
-    %group = BlenderInterior_g.getObject(%i);
-    if(%group.getClassName() $= "SimGroup") {
-      for(%j = 0; %j < %group.getCount(); %j++) {
-        %mp = %group.getObject(%j);
-        if(%mp.getClassName() $= "PathedInterior") {
-          %mp.getDatablock().schedule(50, "onMissionReset", %mp);
-        }
-      }
-    }
-  }
+  %this.processGroup(BlenderInterior_g);
   
   // Put the marble back where it was in case it fell
   LocalClientConnection.player.setTransform(%this.marbleTransform);
