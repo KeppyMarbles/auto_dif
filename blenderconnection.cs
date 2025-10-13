@@ -1,8 +1,32 @@
+//-----------------------------------------------------------------------------
+// blenderconnection.cs
+//
 // Basic idea:
 // 1. Have Blender export DIF on save. Notify PQ.
 // 2. Have PQ delete the related interiors and files. Notify Blender.
 // 3. Have Blender move the new DIFs into the game files. Notify PQ.
 // 4. Have PQ add the interiors back into the mission.
+//
+// Copyright (c) 2025 The Platinum Team
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to
+// deal in the Software without restriction, including without limitation the
+// rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+// sell copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+// DEALINGS IN THE SOFTWARE.
+//-----------------------------------------------------------------------------
 
 $BlenderPort = 7654;
 
@@ -73,7 +97,7 @@ function BlenderConnection::allocateDIFsPart1(%this, %folderPath, %dif_name, %am
     return;
   }
   
-  // Unpause the game so we don't crash
+  // Unpause the game so messages are handled properly
   %this.pauseGame = $gamePaused;
   if(%this.pauseGame)
     $gamePaused = false;
