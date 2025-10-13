@@ -91,7 +91,7 @@ function BlenderConnection::recieveCommand(%this, %msg) {
   eval(%func @ ");");
 }
 
-function BlenderConnection::allocateDIFsPart1(%this, %folderPath, %dif_name, %amt) { //TODO should we check the mission to see if the dif is in use currently?
+function BlenderConnection::allocateDIFsPart1(%this, %folderPath, %dif_name, %amt) {
   if(!isObject(MissionGroup)) {
     error("User is not in a mission");
     return;
