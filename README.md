@@ -1,5 +1,6 @@
 # auto_dif
-A Blender plugin to enable hot reloading of DIFs. Hosts a local server to communicate with a Marble Blast game. Requires [io_dif](https://github.com/RandomityGuy/io_dif).
+A Blender plugin to enable hot reloading of DIFs. Hosts a local server to communicate with a Marble Blast game. Requires [io_dif](https://github.com/RandomityGuy/io_dif). 
+Supported Blender versions: 4.X
 
 ## Setup
 

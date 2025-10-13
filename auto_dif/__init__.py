@@ -11,7 +11,7 @@ import tempfile
 bl_info = {
     "name": "Auto DIF",
     "author": "Keppy",
-    "version": (0, 1, 0),
+    "version": (1, 0, 0),
     "description": "Connects with Marble Blast to enable hot reloading of DIFs",
     "warning": "",
     "doc_url": "",
