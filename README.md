@@ -4,7 +4,7 @@ Supported Blender versions: 4.X
 
 ## Setup
 
-Ensure the latest io_dif is installed. Then install this plugin (the auto_dif folder) and navigate to Preferences > Add-ons > Auto DIF to set the Game Directory. This should point to where marbleblast.exe is located. Then in your project, navigate to Scene Properties > AutoDIF Settings > Export Directory and choose your desired interiors folder.
+In Blender, ensure the latest io_dif is installed, and install this plugin (the auto_dif folder). Then navigate to Scene Properties > AutoDIF Settings > Export Directory and choose your desired interiors folder.
 
 In PQ, hit the Connect Blender button in the editor.
 
@@ -15,7 +15,7 @@ In PQ, hit the Connect Blender button in the editor.
   - DIF splits (large, multi-file interiors) are handled properly
   - Export Directory (Scene Property): determines where in the game directory the interior(s) should be placed
 - Export on Save (AutoDIF pref): if enabled, export will occur when saving the scene
-
+- Game Directory Override: can be set if there is an issue with the in-game exe path value
 
 https://github.com/user-attachments/assets/834daa00-930c-4c40-a6a1-4d914f5f6acd
 

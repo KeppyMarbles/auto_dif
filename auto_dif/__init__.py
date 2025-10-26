@@ -23,8 +23,9 @@ class AutoDIFPreferences(bpy.types.AddonPreferences):
     bl_idname = __name__
 
     game_dir: bpy.props.StringProperty(
-        name="Game Directory",
+        name="Game Directory Override",
         subtype="DIR_PATH",
+        description="If there is an issue with the game sending its exe path, you can set it here.",
         default="",
     )
 
@@ -46,12 +47,11 @@ class AutoDIFPreferences(bpy.types.AddonPreferences):
 
     def draw(self, context):
         layout = self.layout
-        layout.prop(self, "game_dir")
-        sublayout = layout.row()
-        sublayout.prop(self, "export_on_save")
+        layout.prop(self, "export_on_save")
         sublayout = layout.row()
         sublayout.prop(self, "bspmode")
-        
+        sublayout = layout.row()
+        sublayout.prop(self, "game_dir")
 
 class EXPORT_OT_manual(bpy.types.Operator):
     bl_idname = "export_scene.tomb"
@@ -138,18 +138,15 @@ class DIFServer:
         return bpy.context.preferences.addons[__name__].preferences
     
     @property
-    def interiors_relative_directory(self):
-        if(bpy.context.scene.autodif_export_settings.export_dir == "CUSTOM"):
-            return bpy.context.scene.autodif_export_settings.custom_export_dir
-        else:
-            return bpy.context.scene.autodif_export_settings.export_dir
+    def settings(self):
+        return bpy.context.scene.autodif_export_settings
     
     @property
-    def interiors_directory(self):
-        if self.interiors_relative_directory:
-            return os.path.join(self.prefs.game_dir, *self.interiors_relative_directory.split("/"))
+    def interiors_relative_directory(self):
+        if(self.settings.export_dir == "CUSTOM"):
+            return self.settings.custom_export_dir
         else:
-            return None
+            return self.settings.export_dir
 
     def log(self, msg):
         now = datetime.datetime.now().strftime("%H:%M:%S.%f")
@@ -177,11 +174,20 @@ class DIFServer:
         func = getattr(self, query[0])
         func(*query[1:])
 
-    def install_difs(self):
+    def install_difs(self, game_exe_path):
         """ Moves the exported interior files into the game directory and tells the game to add them to the level """
+        if self.prefs.game_dir:
+            game_directory = self.prefs.game_dir
+        else:
+            if not os.path.isfile(game_exe_path):
+                raise Exception("There was a problem with the recieved game directory. You may have to set it manually in AutoDIF settings.")
+            game_directory = os.path.dirname(game_exe_path)
+
+        interiors_directory = os.path.join(game_directory, *self.interiors_relative_directory.split("/"))
+
         for dif_path in self.difs_to_install:
             interior_name = os.path.basename(dif_path)
-            destination = os.path.join(self.interiors_directory, interior_name) 
+            destination = os.path.join(interiors_directory, interior_name) 
             shutil.move(dif_path, destination)
             self.log(f"Moving {interior_name} to {destination}...")
 
@@ -191,9 +197,6 @@ class DIFServer:
         """ Exports the scene as DIF into a temp folder and tells the game to get ready for those files """
 
         # Verify attributes
-        if not self.prefs.game_dir:
-            raise Exception("Game directory not set. Check Preferences->Add-ons->Auto DIF.")
-            
         if not self.interiors_relative_directory:
             raise Exception("Interior folder wasn't set. Check Scene->AutoDIF Settings->Export Directory.")
         
