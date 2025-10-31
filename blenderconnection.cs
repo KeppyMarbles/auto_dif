@@ -106,11 +106,12 @@ function BlenderConnection::recieveCommand(%this, %msg) {
   //%msg is in the format "methodName|arg1|arg2|arg3..."
   while(%msg !$= "") {
     %msg = nextToken(%msg, "token", "|");
-    if(%func $= "") {
-      %func = %this @ ".call(\"" @ %token @ "\"";
-    }
+    if(%func $= "")
+      %func = %this @ "." @ %token @ "(";
     else {
-      %func = %func @ "," SPC "\"" @ %token @ "\"";
+      %func = %func @ "\"" @ %token @ "\"";
+      if(%msg !$= "")
+        %func = %func @ ",";
     }
   }
   eval(%func @ ");");
