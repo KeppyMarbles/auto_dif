@@ -4,8 +4,10 @@ import datetime
 import traceback
 import bpy
 import os
+import sys
 import shutil
 import tempfile
+from bpy.app.handlers import persistent
 
 
 bl_info = {
@@ -179,11 +181,15 @@ class DIFServer:
         if self.prefs.game_dir:
             game_directory = self.prefs.game_dir
         else:
-            if not os.path.isfile(game_exe_path):
-                raise Exception("There was a problem with the recieved game directory. You may have to set it manually in AutoDIF settings.")
             game_directory = os.path.dirname(game_exe_path)
+            
+            if sys.platform == "darwin":
+                game_directory = os.path.abspath(os.path.join(game_directory, "../.."))
 
         interiors_directory = os.path.join(game_directory, *self.interiors_relative_directory.split("/"))
+        
+        if not os.path.isdir(interiors_directory):
+            raise Exception("There was a problem with the recieved game directory. You may have to set it manually in AutoDIF settings.")
 
         for dif_path in self.difs_to_install:
             interior_name = os.path.basename(dif_path)
@@ -298,6 +304,7 @@ class DIFServer:
         self.server_thread = None
 
 
+@persistent
 def on_save(dummy):
     """ Called after the blend file is saved """
     if server.prefs.export_on_save:
