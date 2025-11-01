@@ -189,7 +189,7 @@ class DIFServer:
         interiors_directory = os.path.join(game_directory, *self.interiors_relative_directory.split("/"))
         
         if not os.path.isdir(interiors_directory):
-            raise Exception("There was a problem with the recieved game directory. You may have to set it manually in AutoDIF settings.")
+            raise Exception(f"Interior directory {interiors_directory} does not exist. Check Game Directory Override in AutoDIF settings.")
 
         for dif_path in self.difs_to_install:
             interior_name = os.path.basename(dif_path)
