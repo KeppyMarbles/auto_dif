@@ -1,3 +1,5 @@
+// Created by Keppy
+
 $ConstructorPort = 7653;
 
 package AutoDIF {
@@ -119,6 +121,28 @@ function CSceneManager::getCurrentName(%this) {
   return fileBase(%this.getCurrentFile());
 }
 
+function CSceneManager::findInvalidMP(%this) {
+  %currentMap = %this.getCurrentMap();
+  %doors = 0;
+  for(%i = 0; %i < %currentMap.getNumEntities(); %i++) {
+    %id = %currentMap.getEntityID(%i);
+    %classname = %currentMap.getEntityClassname(%id);
+    if(%classname $= "Door_Elevator") {
+      %current_door = %doors;
+      %ids[%current_door] = %id;
+      %doors += 1;
+    }
+    else if(%classname $= "path_node") {
+      %path_nodes[%current_door] += 1;
+    }
+  }
+  for(%i = 0; %i < %doors; %i++) {
+    if(%path_nodes[%i] < 2)
+      return %ids[%i];
+  }
+  return -1;
+}
+
 function MBConnectionClient::onDisconnect(%this) {
   %this.delete();
 }
@@ -155,7 +179,6 @@ function MBConnectionClient::recieveCommand(%this, %msg) {
         %func = %func @ ",";
     }
   }
-  echo(%func @ ");");
   eval(%func @ ");");
 }
 
@@ -166,16 +189,16 @@ function MBConnectionClient::getDifPath(%this) {
 }
 
 function MBConnectionClient::startAllocate(%this) {
-  //TODO need to check validity of MPs to prevent a crash
+  // Make sure everything is ready
   if(!isFile("csx3dif.exe")) {
     %this.sendCommand("notifyError", "csx3dif.exe was not found in Constructor root directory.");
     return;
   }
   %map = scene.getCurrentMap();
-	if(!isObject(%map) || %map.getNumBrushes() == 0) {
-		%this.sendCommand("notifyError", "Nothing to export");
-		return;
-	}
+  if(!isObject(%map) || %map.getNumEntityChildren(0) == 0) {
+    %this.sendCommand("notifyError", "Worldspawn is empty");
+    return;
+  }
   if(scene.getCurrentFile() $= scene.getCurrentName()) {
     %this.sendCommand("notifyError", "Scene needs to be saved to a file");
     return;
@@ -188,15 +211,20 @@ function MBConnectionClient::startAllocate(%this) {
     error("AutoDIF: An export is already in progress; skipping");
     return;
   }
+  
+  // Validate moving platforms
+  %mp = scene.findInvalidMP();
+  if(%mp != -1) {
+    %this.sendCommand("notifyError", "There is a Door_Elevator (entity id" SPC %mp SPC ") that does not have enough path nodes.");
+    return;
+  }
+  
+  // All ready to go... hopefully
   %this.sendCommand("allocateDIFsPart1", %this.getDifPath());
 }
 
 function MBConnectionClient::exportDif(%this, %game_exe_directory) {
   %this.game_exe_directory = %game_exe_directory;
-  
-  $pref::Constructor::DIFExportCopyBrushTextures = "0";
-  $pref::Constructor::DIFExportCopyMeshTextures = "0";
-  $pref::Constructor::DIFExportInfoFile = "0";
   
   %args = scene.getCurrentFile();
   if(!$pref::AutoDIF::BuildBSP) {
@@ -213,19 +241,19 @@ function MBConnectionClient::exportDif(%this, %game_exe_directory) {
 }
 
 function MBConnectionClient::copyDif(%this) {
-  %adjdif = strreplace(scene.getCurrentFile(), ".csx", ".dif");
+  %adjDif = strreplace(scene.getCurrentFile(), ".csx", ".dif");
   %targetDifDir = filePath(%this.game_exe_directory) @ "/" @ %this.getDifPath();
   
-  echo("Copying" SPC %adjdif SPC "to" SPC %targetDifDir);
-  %result = pathCopy(%adjdif, %targetDifDir, 0);
+  echo("Copying" SPC %adjDif SPC "to" SPC %targetDifDir);
+  %result = pathCopy(%adjDif, %targetDifDir, 0);
   
   if(!%result) {
     %this.sendCommand("notifyError", "The DIF didn't get copied. Perhaps it failed to export.");
     return;
   }
   
-  if(fileDelete(%adjdif)) {
-    echo("Deleted file" SPC %adjdif);
+  if(fileDelete(%adjDif)) {
+    echo("Deleted file" SPC %adjDif);
   }
 
   %this.sendCommand("addNewInteriors");
