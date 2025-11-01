@@ -167,6 +167,10 @@ function MBConnectionClient::getDifPath(%this) {
 
 function MBConnectionClient::startAllocate(%this) {
   //TODO need to check validity of MPs to prevent a crash
+  if(!isFile("csx3dif.exe")) {
+    %this.sendCommand("notifyError", "csx3dif.exe was not found in Constructor root directory.");
+    return;
+  }
   %map = scene.getCurrentMap();
 	if(!isObject(%map) || %map.getNumBrushes() == 0) {
 		%this.sendCommand("notifyError", "Nothing to export");
@@ -202,8 +206,7 @@ function MBConnectionClient::exportDif(%this, %game_exe_directory) {
   activatePackage(csx3difPipe);
   %result = executeAndLog("csx3dif" SPC %args);
   if(!%result) {
-    //TODO: This does not occur when csx3dif does not exist in the files
-    %this.sendCommand("notifyError", "Couldn't execute csx3dif");
+    %this.sendCommand("notifyError", "There was a problem when trying to execute csx3dif.");
     deactivatePackage(csx3difPipe);
     return;
   }
