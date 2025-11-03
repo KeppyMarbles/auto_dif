@@ -247,7 +247,6 @@ function MBConnectionClient::findDIFs(%this) {
       %path = %dif_dir @ "/" @ scene.getCurrentName() @ ".dif";
     else
       %path = %dif_dir @ "/" @ scene.getCurrentName() @ "-" @ %i @ ".dif";
-    echo(%path);
     
     if(!PlatformIsFile(%path))
       break;
