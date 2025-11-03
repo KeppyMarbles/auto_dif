@@ -33,7 +33,6 @@ package AutoDIF {
     %form.addFieldListItem(0, MBConnection.folders[6]);
     %form.addField(1, "Export On Save", "checkbox");
     %form.addField(2, "Build BSP", "checkbox");
-    inputPopCursor();
   }
   
   function Plugin::InterfaceGet(%this, %inst, %id) {
@@ -64,8 +63,8 @@ package AutoDIF {
 package AutoDIFSave {
   function CSceneManager::save(%this) {
     %this.applyEntityRotations();
-    %needsSave = scene.getCurrent().isModified();
     
+    %needsSave = scene.getCurrent().isModified();
     Parent::save(%this);
     
     if($pref::AutoDIF::ExportOnSave) {
@@ -82,6 +81,8 @@ package csx3difPipe {
   function onAsyncPipeEOF(%pipe) {
     forceBackgroundSleep(0);
     %pipe.schedule(32, "delete");
+    
+    // Continue to next step
     MBConnectionClient.findDIFs();
     deactivatePackage(csx3difPipe);
   }
@@ -126,6 +127,7 @@ function CSceneManager::getCurrentFile(%this) {
 }
 
 function CSceneManager::getCurrentName(%this) {
+  // Returns the name of the project
   return fileBase(%this.getCurrentFile());
 }
 
@@ -134,6 +136,7 @@ function CSceneManager::getInteriorsFolderID(%this) {
 }
 
 function CSceneManager::setInteriorsFolderID(%this, %id) {
+  // Add the interiors folder choice onto the worldspawn for persistence
   %this.getCurrentMap().addEntityProperty(0, "interiorsFolder", %id);
 }
 
@@ -229,7 +232,9 @@ function MBConnectionClient::export_difs(%this) {
     %args = %args SPC "--bsp none";
   }
 
+  // Inject the new pipe EOF callback to continue after conversion
   activatePackage(csx3difPipe);
+  
   %result = executeAndLog("csx3dif" SPC %args);
   if(!%result) {
     %this.sendCommand("notifyError", "There was a problem when trying to execute csx3dif.");
@@ -239,6 +244,8 @@ function MBConnectionClient::export_difs(%this) {
 }
 
 function MBConnectionClient::findDIFs(%this) {
+  // Find all the DIFs that got exported (usually just 1) to be allocated and installed
+  
   %dif_dir = filePath(scene.getCurrentFile());
   %i = 0;
   
@@ -263,6 +270,8 @@ function MBConnectionClient::findDIFs(%this) {
 }
 
 function MBConnectionClient::install_difs(%this, %game_exe_directory) {
+  // Copy all of the DIFs into interiors directory
+  
   %interiors_directory = filePath(%game_exe_directory) @ "/" @ MBConnection.folders[scene.getInteriorsFolderID()];
   
   for(%i = 0; %i < %this.newInteriorCount; %i++) {
