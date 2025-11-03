@@ -37,6 +37,7 @@ https://github.com/user-attachments/assets/834daa00-930c-4c40-a6a1-4d914f5f6acd
 ### Constructor
  - Mostly the same as Blender.
  - Adds rotation field to PointEntities and checks if each Door_Elevator has enough path_nodes before exporting
+ - Interior folder options can be added or changed in `constructor/prefs.cs`
 
 ## Important Info
 
