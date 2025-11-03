@@ -238,11 +238,6 @@ function MBConnectionClient::export_difs(%this) {
   }
 }
 
-function MBConnectionClient::conversionTimeout(%this, %pipe) {
-  %pipe.delete();
-  %this.sendCommand("notifyError", "The csx3dif conversion timed out.");
-}
-
 function MBConnectionClient::findDIFs(%this) {
   %dif_dir = filePath(scene.getCurrentFile());
   %i = 0;
@@ -316,8 +311,3 @@ tool.register("AutoDIF", tool.typeDialog(), tool.RFLAG_NONE(), "AutoDIF" );
 
 tool.setToolProperty("AutoDIF", "Icon", "standardicons/default");
 tool.setToolProperty("AutoDIF", "Group", "Keppy's Plugins");
-
-function re() {
-  fileDelete(filePath(strreplace($Game::argv[0], "\\", "/")) @ "/" @ $Con::File @ ".dso");
-	exec($Con::File);
-}
