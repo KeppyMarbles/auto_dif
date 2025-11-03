@@ -25,12 +25,9 @@ package AutoDIF {
     %form.defineTitle("Auto DIF");
     %form.addField(0, "Interior Folder", "popup");
     %form.addFieldListItem(0, "");
-    %form.addFieldListItem(0, MBConnection.folders[1]);
-    %form.addFieldListItem(0, MBConnection.folders[2]);
-    %form.addFieldListItem(0, MBConnection.folders[3]);
-    %form.addFieldListItem(0, MBConnection.folders[4]);
-    %form.addFieldListItem(0, MBConnection.folders[5]);
-    %form.addFieldListItem(0, MBConnection.folders[6]);
+    for(%i = 1; $pref::AutoDIF::folders[%i] !$= ""; %i++) {
+      %form.addFieldListItem(0, $pref::AutoDIF::folders[%i]);
+    }
     %form.addField(1, "Export On Save", "checkbox");
     %form.addField(2, "Build BSP", "checkbox");
   }
@@ -214,11 +211,14 @@ function MBConnectionClient::export_difs(%this) {
     %this.sendCommand("notifyError", "Scene needs to be saved to a file");
     return;
   }
-  if(scene.getInteriorsFolderID() $= "") {
+  
+  %this.folder = $pref::AutoDIF::folders[scene.getInteriorsFolderID()];
+  
+  if(%this.folder $= "") {
     %this.sendCommand("notifyError", "Interiors folder not set");
     return;
   }
-  
+
   // Validate moving platforms
   %mp = %map.findInvalidMP();
   if(%mp != -1) {
@@ -266,13 +266,13 @@ function MBConnectionClient::findDIFs(%this) {
   if(%i == 0)
     %this.sendCommand("notifyError", "No difs were exported; perhaps an error occured in csx3dif.");
   else
-    %this.sendCommand("allocateDIFsPart1", MBConnection.folders[scene.getInteriorsFolderID()], scene.getCurrentName(), %i);
+    %this.sendCommand("allocateDIFsPart1", %this.folder, scene.getCurrentName(), %i);
 }
 
 function MBConnectionClient::install_difs(%this, %game_exe_directory) {
   // Copy all of the DIFs into interiors directory
   
-  %interiors_directory = filePath(%game_exe_directory) @ "/" @ MBConnection.folders[scene.getInteriorsFolderID()];
+  %interiors_directory = filePath(%game_exe_directory) @ "/" @ %this.folder;
   
   for(%i = 0; %i < %this.newInteriorCount; %i++) {
     %difPath = %this.interiorsToInstall[%i];
@@ -299,19 +299,22 @@ if(isObject(MBConnection)) {
 }
 new TCPObject(MBConnection);
 
-MBConnection.folders[1] = "platinum/data/interiors_mbg/custom";
-MBConnection.folders[2] = "platinum/data/interiors_mbp/custom";
-MBConnection.folders[3] = "platinum/data/interiors_mbu/custom";
-MBConnection.folders[4] = "platinum/data/interiors_pq/custom";
-MBConnection.folders[5] = "platinum/data/interiors/custom";
-MBConnection.folders[6] = "platinum/data/multiplayer/interiors/custom";
-
 MBConnection.listen(7653);
 
 if($pref::AutoDIF::ExportOnSave $= "")
   $pref::AutoDIF::ExportOnSave = 1;
+
 if($pref::AutoDIF::BuildBSP $= "")
   $pref::AutoDIF::BuildBSP = 0;
+
+if($pref::AutoDIF::folders[1] $= "") {
+  $pref::AutoDIF::folders[1] = "platinum/data/interiors_mbg/custom";
+  $pref::AutoDIF::folders[2] = "platinum/data/interiors_mbp/custom";
+  $pref::AutoDIF::folders[3] = "platinum/data/interiors_mbu/custom";
+  $pref::AutoDIF::folders[4] = "platinum/data/interiors_pq/custom";
+  $pref::AutoDIF::folders[5] = "platinum/data/interiors/custom";
+  $pref::AutoDIF::folders[6] = "platinum/data/multiplayer/interiors/custom";
+}
 
 activatePackage(AutoDIFSave);
 
