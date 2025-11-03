@@ -54,6 +54,7 @@ class AutoDIFPreferences(bpy.types.AddonPreferences):
         sublayout.prop(self, "bspmode")
         sublayout = layout.row()
         sublayout.prop(self, "game_dir")
+        
 
 class EXPORT_OT_manual(bpy.types.Operator):
     bl_idname = "export_scene.tomb"
@@ -153,7 +154,29 @@ class DIFServer:
     def log(self, msg):
         now = datetime.datetime.now().strftime("%H:%M:%S.%f")
         print(f"[{now}] (AutoDIF) {msg}")
+        
+    def start(self):
+        if self.server_thread and self.server_thread.is_alive():
+            self.stop()
 
+        self.server_thread = threading.Thread(target=self.server_loop, daemon=True)
+        self.server_thread.start()
+
+    def stop(self):
+        if self.current_conn:
+            self.current_conn.shutdown(socket.SHUT_RDWR)
+            self.current_conn.close()
+
+        if self.stop_event:
+            self.stop_event.set()
+
+        if self.server_thread:
+            self.server_thread.join(timeout=2.0)
+
+        self.current_conn = None
+        self.stop_event = None
+        self.server_thread = None
+        
     def send_command(self, *args):
         """ Sends a BlenderConnection method with arguments for the connected game to execute """
         message = ""
@@ -175,29 +198,50 @@ class DIFServer:
         query = message.split("|")
         func = getattr(self, query[0])
         func(*query[1:])
-
-    def install_difs(self, game_exe_path):
-        """ Moves the exported interior files into the game directory and tells the game to add them to the level """
-        if self.prefs.game_dir:
-            game_directory = self.prefs.game_dir
-        else:
-            game_directory = os.path.dirname(game_exe_path)
-            
-            if sys.platform == "darwin":
-                game_directory = os.path.abspath(os.path.join(game_directory, "../.."))
-
-        interiors_directory = os.path.join(game_directory, *self.interiors_relative_directory.split("/"))
         
-        if not os.path.isdir(interiors_directory):
-            raise Exception(f"Interior directory {interiors_directory} does not exist. Check Game Directory Override in AutoDIF settings.")
+    def server_loop(self):
+        """ Listens for connections from the game """
+        self.stop_event = threading.Event()
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(("localhost", self.port))
+            s.listen(1)
+            s.settimeout(0.5)
+            self.log(f"Server listening on port {self.port}")
 
-        for dif_path in self.difs_to_install:
-            interior_name = os.path.basename(dif_path)
-            destination = os.path.join(interiors_directory, interior_name) 
-            shutil.move(dif_path, destination)
-            self.log(f"Moving {interior_name} to {destination}...")
+            while not self.stop_event.is_set():
+                try:
+                    conn, addr = s.accept()
+                except socket.timeout:
+                    continue
 
-        self.send_command("addNewInteriors")
+                self.log(f"Got connection from {addr}")
+                self.current_conn = conn
+                self.handle_client()
+            else:
+                self.current_conn = None
+                self.log("Server stopped")
+                
+    def handle_client(self):
+        """ Called when a connection from the game is made """
+        with self.current_conn:
+            while True:
+                try:
+                    data = self.current_conn.recv(16000)
+                except (ConnectionResetError, ConnectionAbortedError, OSError) as error:
+                    self.log("Client connection closed")
+                    return
+                
+                if not data:
+                    self.log("Client disconnected")
+                    return
+                
+                try:
+                    self.recieve_command(data.decode())
+
+                # Send errors to the game to show in a message box
+                except Exception as error:
+                    self.log(traceback.format_exc())
+                    self.send_command("notifyError", f"{str(error)}")
 
     def export_difs(self):
         """ Exports the scene as DIF into a temp folder and tells the game to get ready for those files """
@@ -236,72 +280,29 @@ class DIFServer:
             self.send_command("notifyError", "No difs were exported; perhaps the scene is empty or an error occured.")
         else:
             self.send_command(f"allocateDIFsPart1", self.interiors_relative_directory, difname, i)
+            
+    def install_difs(self, game_exe_path):
+        """ Moves the exported interior files into the game directory and tells the game to add them to the level """
+        if self.prefs.game_dir:
+            game_directory = self.prefs.game_dir
+        else:
+            game_directory = os.path.dirname(game_exe_path)
+            
+            if sys.platform == "darwin":
+                game_directory = os.path.abspath(os.path.join(game_directory, "../.."))
 
-    def handle_client(self):
-        """ Called when a connection from the game is made """
-        with self.current_conn:
-            while True:
-                try:
-                    data = self.current_conn.recv(16000)
-                except (ConnectionResetError, ConnectionAbortedError, OSError) as error:
-                    self.log("Client connection closed")
-                    return
-                
-                if not data:
-                    self.log("Client disconnected")
-                    return
-                
-                try:
-                    self.recieve_command(data.decode())
+        interiors_directory = os.path.join(game_directory, *self.interiors_relative_directory.split("/"))
+        
+        if not os.path.isdir(interiors_directory):
+            raise Exception(f"Interior directory {interiors_directory} does not exist. Check Game Directory Override in AutoDIF settings.")
 
-                # Send errors to the game to show in a message box
-                except Exception as error:
-                    self.log(traceback.format_exc())
-                    self.send_command("notifyError", f"{str(error)}")
+        for dif_path in self.difs_to_install:
+            interior_name = os.path.basename(dif_path)
+            destination = os.path.join(interiors_directory, interior_name) 
+            shutil.move(dif_path, destination)
+            self.log(f"Moving {interior_name} to {destination}...")
 
-    def server_loop(self):
-        """ Listens for connections from the game """
-        self.stop_event = threading.Event()
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.bind(("localhost", self.port))
-            s.listen(1)
-            s.settimeout(0.5)
-            self.log(f"Server listening on port {self.port}")
-
-            while not self.stop_event.is_set():
-                try:
-                    conn, addr = s.accept()
-                except socket.timeout:
-                    continue
-
-                self.log(f"Got connection from {addr}")
-                self.current_conn = conn
-                self.handle_client()
-            else:
-                self.current_conn = None
-                self.log("Server stopped")
-
-    def start(self):
-        if self.server_thread and self.server_thread.is_alive():
-            self.stop()
-
-        self.server_thread = threading.Thread(target=self.server_loop, daemon=True)
-        self.server_thread.start()
-
-    def stop(self):
-        if self.current_conn:
-            self.current_conn.shutdown(socket.SHUT_RDWR)
-            self.current_conn.close()
-
-        if self.stop_event:
-            self.stop_event.set()
-
-        if self.server_thread:
-            self.server_thread.join(timeout=2.0)
-
-        self.current_conn = None
-        self.stop_event = None
-        self.server_thread = None
+        self.send_command("addNewInteriors")
 
 
 @persistent
