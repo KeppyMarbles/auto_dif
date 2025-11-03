@@ -1,6 +1,6 @@
 // Created by Keppy
 
-$ConstructorPort = 7653;
+// ---------------- Plugin ----------------
 
 package AutoDIF {
   function Plugin::Activate(%this, %version, %inst, %static) {
@@ -8,27 +8,8 @@ package AutoDIF {
       return tool.FUNC_BADVERSION();
     }
     
-    if(scene.getCurrentFile() $= scene.getCurrentName()) {
-      tool.activateErrorMsg = "This plugin requires the scene to be saved.";
-      return tool.FUNC_BADGENERAL();
-    }
-    
-    if(!%static.init) {
-      AutoDIF_InitStatic(%static);
-    }
-    
-    if(isObject(MBConnection)) {
-      MBConnection.disconnect();
-      MBConnection.delete();
-    }
-    new TCPObject(MBConnection);
-    
-    
-    MBConnection.listen($ConstructorPort);
-    
     %plugin = new ScriptObject();
     %plugin.static = %static;
-    MBConnection.static = %static;
     
     %plugin.dirty = tool.DIRTY_NONE();
     %plugin.active = true;
@@ -44,12 +25,12 @@ package AutoDIF {
     %form.defineTitle("Auto DIF");
     %form.addField(0, "Interior Folder", "popup");
     %form.addFieldListItem(0, "");
-    %form.addFieldListItem(0, %inst.instance.static.folders[1]);
-    %form.addFieldListItem(0, %inst.instance.static.folders[2]);
-    %form.addFieldListItem(0, %inst.instance.static.folders[3]);
-    %form.addFieldListItem(0, %inst.instance.static.folders[4]);
-    %form.addFieldListItem(0, %inst.instance.static.folders[5]);
-    %form.addFieldListItem(0, %inst.instance.static.folders[6]);
+    %form.addFieldListItem(0, MBConnection.folders[1]);
+    %form.addFieldListItem(0, MBConnection.folders[2]);
+    %form.addFieldListItem(0, MBConnection.folders[3]);
+    %form.addFieldListItem(0, MBConnection.folders[4]);
+    %form.addFieldListItem(0, MBConnection.folders[5]);
+    %form.addFieldListItem(0, MBConnection.folders[6]);
     %form.addField(1, "Export On Save", "checkbox");
     %form.addField(2, "Build BSP", "checkbox");
     inputPopCursor();
@@ -58,7 +39,7 @@ package AutoDIF {
   function Plugin::InterfaceGet(%this, %inst, %id) {
     switch(%id) {
       case 0:
-        return $pref::AutoDIF::InteriorsFolder_[scene.getCurrentName()];
+        return scene.getInteriorsFolderID();
       case 1:
         return $pref::AutoDIF::ExportOnSave;
       case 2:
@@ -69,37 +50,30 @@ package AutoDIF {
   function Plugin::InterfaceSet(%this, %inst, %id, %value) {
     switch(%id) {
       case 0:
-        $pref::AutoDIF::InteriorsFolder_[scene.getCurrentName()] = %value;
-      case 1: 
+        scene.setInteriorsFolderID(%value);
+      case 1:
         $pref::AutoDIF::ExportOnSave = %value;
-      case 3:
+      case 2:
         $pref::AutoDIF::BuildBSP = %value;
     }
   }
-  
-  function AutoDIF_InitStatic(%static) {
-    %static.folders[1] = "platinum/data/interiors_mbg/custom";
-    %static.folders[2] = "platinum/data/interiors_mbp/custom";
-    %static.folders[3] = "platinum/data/interiors_mbu/custom";
-    %static.folders[4] = "platinum/data/interiors_pq/custom";
-    %static.folders[5] = "platinum/data/interiors/custom";
-    %static.folders[6] = "platinum/data/multiplayer/interiors/custom";
-    
-    %static.init = true;
-  }
 };
 
-package ExportOnSave {
+// ---------------- Packages ----------------
+
+package AutoDIFSave {
   function CSceneManager::save(%this) {
+    %this.applyEntityRotations();
     %needsSave = scene.getCurrent().isModified();
+    
     Parent::save(%this);
+    
     if($pref::AutoDIF::ExportOnSave) {
       if(isObject(MBConnectionClient) && %needsSave)
-        MBConnectionClient.startAllocate();
+        MBConnectionClient.export_difs();
     }
   }
 };
-activatePackage(ExportOnSave);
 
 package csx3difPipe {
   function onAsyncPipeText(%pipe, %line) {
@@ -108,25 +82,29 @@ package csx3difPipe {
   function onAsyncPipeEOF(%pipe) {
     forceBackgroundSleep(0);
     %pipe.schedule(32, "delete");
-    MBConnectionClient.copyDif();
+    MBConnectionClient.findDIFs();
     deactivatePackage(csx3difPipe);
   }
 };
 
-function CSceneManager::getCurrentFile(%this) {
-  return %this.getCurrent().getName();
+// ---------------- Helpers ----------------
+
+function InteriorMap::getEntityPropertyByName(%this, %id, %name) {
+  for(%i = 0; %i < %this.getEntityNumProperties(%id); %i++) {
+    %prop = %this.getEntityProperty(%id, %i);
+    if(firstWord(%prop) $= %name) {
+      return getWord(%prop, 1);
+    }
+  }
+  return "";
 }
 
-function CSceneManager::getCurrentName(%this) {
-  return fileBase(%this.getCurrentFile());
-}
-
-function CSceneManager::findInvalidMP(%this) {
-  %currentMap = %this.getCurrentMap();
+function InteriorMap::findInvalidMP(%this) {
+  // Find a Door_Elevator which has less than 2 path nodes
   %doors = 0;
-  for(%i = 0; %i < %currentMap.getNumEntities(); %i++) {
-    %id = %currentMap.getEntityID(%i);
-    %classname = %currentMap.getEntityClassname(%id);
+  for(%i = 0; %i < %this.getNumEntities(); %i++) {
+    %id = %this.getEntityID(%i);
+    %classname = %this.getEntityClassname(%id);
     if(%classname $= "Door_Elevator") {
       %current_door = %doors;
       %ids[%current_door] = %id;
@@ -143,14 +121,37 @@ function CSceneManager::findInvalidMP(%this) {
   return -1;
 }
 
-function MBConnectionClient::onDisconnect(%this) {
-  %this.delete();
+function CSceneManager::getCurrentFile(%this) {
+  return %this.getCurrent().getName();
 }
 
-function MBConnectionClient::onLine(%this, %line) {
-  echo("Recieved Marble Blast message:" SPC %line);
-  %this.recieveCommand(%line);
+function CSceneManager::getCurrentName(%this) {
+  return fileBase(%this.getCurrentFile());
 }
+
+function CSceneManager::getInteriorsFolderID(%this) {
+  return %this.getCurrentMap().getEntityPropertyByName(0, "interiorsFolder");
+}
+
+function CSceneManager::setInteriorsFolderID(%this, %id) {
+  %this.getCurrentMap().addEntityProperty(0, "interiorsFolder", %id);
+}
+
+function CSceneManager::applyEntityRotations(%this) {
+  // Set the rotation property on the entity itself so it can be applied in-game
+  %currentMap = %this.getCurrentMap();
+  %currentScene = %this.getCurrent();
+  for(%i = 0; %i < %currentMap.getNumEntities(); %i++) {
+    %entityID = %currentMap.getEntityID(%i);
+    %shapeID = %currentScene.getPointEntityShapeID(%currentMap, %entityID);
+    if(%shapeID != -1) {
+      %shape = %currentScene.getShapeSimObjectID(%shapeID);
+      %currentMap.addEntityProperty(%entityID, "rotation", %shape.rotation);
+    }
+  }
+}
+
+// ---------------- Connection ----------------
 
 function MBConnection::onConnectRequest(%this, %ip, %id) {
   echo("Got request");
@@ -159,6 +160,15 @@ function MBConnection::onConnectRequest(%this, %ip, %id) {
     MBConnectionClient.delete();
   }
   new TCPObject(MBConnectionClient, %id);
+}
+
+function MBConnectionClient::onDisconnect(%this) {
+  %this.delete();
+}
+
+function MBConnectionClient::onLine(%this, %line) {
+  echo("Recieved Marble Blast message:" SPC %line);
+  %this.recieveCommand(%line);
 }
 
 function MBConnectionClient::sendCommand(%this, %name, %a1, %a2, %a3) {
@@ -182,14 +192,12 @@ function MBConnectionClient::recieveCommand(%this, %msg) {
   eval(%func @ ");");
 }
 
-function MBConnectionClient::getDifPath(%this) {
-  %id = $pref::AutoDIF::InteriorsFolder_[scene.getCurrentName()];
-  %folder = MBConnection.static.folders[%id];
-  return %folder @ "/" @ scene.getCurrentName() @ ".dif";
-}
-
-function MBConnectionClient::startAllocate(%this) {
+function MBConnectionClient::export_difs(%this) {
   // Make sure everything is ready
+  if(isActivePackage(csx3difPipe)) {
+    error("AutoDIF: An export is already in progress; skipping");
+    return;
+  }
   if(!isFile("csx3dif.exe")) {
     %this.sendCommand("notifyError", "csx3dif.exe was not found in Constructor root directory.");
     return;
@@ -203,34 +211,24 @@ function MBConnectionClient::startAllocate(%this) {
     %this.sendCommand("notifyError", "Scene needs to be saved to a file");
     return;
   }
-  if($pref::AutoDIF::InteriorsFolder_[scene.getCurrentName()] $= "") {
+  if(scene.getInteriorsFolderID() $= "") {
     %this.sendCommand("notifyError", "Interiors folder not set");
-    return;
-  }
-  if(isActivePackage(csx3difPipe)) {
-    error("AutoDIF: An export is already in progress; skipping");
     return;
   }
   
   // Validate moving platforms
-  %mp = scene.findInvalidMP();
+  %mp = %map.findInvalidMP();
   if(%mp != -1) {
-    %this.sendCommand("notifyError", "There is a Door_Elevator (entity id" SPC %mp SPC ") that does not have enough path nodes.");
+    %this.sendCommand("notifyError", "There is a Door_Elevator (entity id" SPC %mp @ ") that does not have enough path nodes.");
     return;
   }
   
   // All ready to go... hopefully
-  %this.sendCommand("allocateDIFsPart1", %this.getDifPath());
-}
-
-function MBConnectionClient::exportDif(%this, %game_exe_directory) {
-  %this.game_exe_directory = %game_exe_directory;
-  
   %args = scene.getCurrentFile();
   if(!$pref::AutoDIF::BuildBSP) {
     %args = %args SPC "--bsp none";
   }
-  
+
   activatePackage(csx3difPipe);
   %result = executeAndLog("csx3dif" SPC %args);
   if(!%result) {
@@ -240,24 +238,79 @@ function MBConnectionClient::exportDif(%this, %game_exe_directory) {
   }
 }
 
-function MBConnectionClient::copyDif(%this) {
-  %adjDif = strreplace(scene.getCurrentFile(), ".csx", ".dif");
-  %targetDifDir = filePath(%this.game_exe_directory) @ "/" @ %this.getDifPath();
-  
-  echo("Copying" SPC %adjDif SPC "to" SPC %targetDifDir);
-  %result = pathCopy(%adjDif, %targetDifDir, 0);
-  
-  if(!%result) {
-    %this.sendCommand("notifyError", "The DIF didn't get copied. Perhaps it failed to export.");
-    return;
-  }
-  
-  if(fileDelete(%adjDif)) {
-    echo("Deleted file" SPC %adjDif);
-  }
+function MBConnectionClient::conversionTimeout(%this, %pipe) {
+  %pipe.delete();
+  %this.sendCommand("notifyError", "The csx3dif conversion timed out.");
+}
 
+function MBConnectionClient::findDIFs(%this) {
+  %dif_dir = filePath(scene.getCurrentFile());
+  %i = 0;
+  
+  while(true) {
+    if(%i == 0)
+      %path = %dif_dir @ "/" @ scene.getCurrentName() @ ".dif";
+    else
+      %path = %dif_dir @ "/" @ scene.getCurrentName() @ "-" @ %i @ ".dif";
+    echo(%path);
+    
+    if(!PlatformIsFile(%path))
+      break;
+    
+    %this.interiorsToInstall[%i] = %path;
+    %i++;
+  }
+  %this.newInteriorCount = %i;
+  
+  if(%i == 0)
+    %this.sendCommand("notifyError", "No difs were exported; perhaps an error occured in csx3dif.");
+  else
+    %this.sendCommand("allocateDIFsPart1", MBConnection.folders[scene.getInteriorsFolderID()], scene.getCurrentName(), %i);
+}
+
+function MBConnectionClient::install_difs(%this, %game_exe_directory) {
+  %interiors_directory = filePath(%game_exe_directory) @ "/" @ MBConnection.folders[scene.getInteriorsFolderID()];
+  
+  for(%i = 0; %i < %this.newInteriorCount; %i++) {
+    %difPath = %this.interiorsToInstall[%i];
+    %newDifPath = %interiors_directory @ "/" @ fileName(%difPath);
+    echo("Copying" SPC %difPath SPC "to" SPC %newDifPath);
+    %result = pathCopy(%difPath, %newDifPath, false);
+    if(!%result) {
+      %this.sendCommand("notifyError", "There was a problem trying to copy" SPC %difPath SPC "to" SPC %newDifPath @ ".");
+      return;
+    }
+    if(fileDelete(%difPath)) {
+      echo("Deleted file" SPC %difPath);
+    }
+  }
+  
   %this.sendCommand("addNewInteriors");
 }
+
+// ---------------- Initialization ----------------
+
+if(isObject(MBConnection)) {
+  MBConnection.disconnect();
+  MBConnection.delete();
+}
+new TCPObject(MBConnection);
+
+MBConnection.folders[1] = "platinum/data/interiors_mbg/custom";
+MBConnection.folders[2] = "platinum/data/interiors_mbp/custom";
+MBConnection.folders[3] = "platinum/data/interiors_mbu/custom";
+MBConnection.folders[4] = "platinum/data/interiors_pq/custom";
+MBConnection.folders[5] = "platinum/data/interiors/custom";
+MBConnection.folders[6] = "platinum/data/multiplayer/interiors/custom";
+
+MBConnection.listen(7653);
+
+if($pref::AutoDIF::ExportOnSave $= "")
+  $pref::AutoDIF::ExportOnSave = 1;
+if($pref::AutoDIF::BuildBSP $= "")
+  $pref::AutoDIF::BuildBSP = 0;
+
+activatePackage(AutoDIFSave);
 
 tool.register("AutoDIF", tool.typeDialog(), tool.RFLAG_NONE(), "AutoDIF" );
 
@@ -265,5 +318,6 @@ tool.setToolProperty("AutoDIF", "Icon", "standardicons/default");
 tool.setToolProperty("AutoDIF", "Group", "Keppy's Plugins");
 
 function re() {
+  fileDelete(filePath(strreplace($Game::argv[0], "\\", "/")) @ "/" @ $Con::File @ ".dso");
 	exec($Con::File);
 }
