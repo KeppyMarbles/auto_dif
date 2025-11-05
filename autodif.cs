@@ -74,6 +74,7 @@ package AutoDIFSave {
 package csx3difPipe {
   function onAsyncPipeText(%pipe, %line) {
     echo(%line);
+    MBConnectionClient.pipeOutput = MBConnectionClient.pipeOutput @ %line;
   }
   function onAsyncPipeEOF(%pipe) {
     forceBackgroundSleep(0);
@@ -81,6 +82,7 @@ package csx3difPipe {
     
     // Continue to next step
     MBConnectionClient.findDIFs();
+    MBConnectionClient.pipeOutput = "";
     deactivatePackage(csx3difPipe);
   }
 };
@@ -173,6 +175,9 @@ function MBConnectionClient::onLine(%this, %line) {
 
 function MBConnectionClient::sendCommand(%this, %name, %a1, %a2, %a3) {
   %message = %name @ "|" @ %a1 @ "|" @ %a2 @ "|" @ %a3;
+  %message = strreplace(%message, "\\", "\\\\");
+  %message = strreplace(%message, "\n", "\\n");
+  %message = strreplace(%message, "\"", "\\\"");
   echo("Sending message:" SPC %message);
   %this.send(%message @ "\n");
 }
@@ -227,7 +232,7 @@ function MBConnectionClient::export_difs(%this) {
   }
   
   // All ready to go... hopefully
-  %args = scene.getCurrentFile();
+  %args = "\"" @ scene.getCurrentFile() @ "\"";
   if(!$pref::AutoDIF::BuildBSP) {
     %args = %args SPC "--bsp none";
   }
@@ -264,7 +269,7 @@ function MBConnectionClient::findDIFs(%this) {
   %this.newInteriorCount = %i;
   
   if(%i == 0)
-    %this.sendCommand("notifyError", "No difs were exported; perhaps an error occured in csx3dif.");
+    %this.sendCommand("notifyError", "No difs were exported. Command line says: \n" SPC %this.pipeOutput);
   else
     %this.sendCommand("allocateDIFsPart1", %this.folder, scene.getCurrentName(), %i);
 }
@@ -322,3 +327,8 @@ tool.register("AutoDIF", tool.typeDialog(), tool.RFLAG_NONE(), "AutoDIF" );
 
 tool.setToolProperty("AutoDIF", "Icon", "standardicons/default");
 tool.setToolProperty("AutoDIF", "Group", "Keppy's Plugins");
+
+function re() {
+  fileDelete(filePath(strreplace($Game::argv[0], "\\", "/")) @ "/" @ $Con::File @ ".dso");
+	exec($Con::File);
+}
