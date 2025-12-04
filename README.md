@@ -19,8 +19,6 @@ Open Constructor and save or open a scene. Then click the `Auto DIF` plugin box 
 
 In PQ, hit the `Connect Constructor` button in the editor.
 
-**Note**: Since the interior data comes from the .csx file, you will need to save the scene any time you want changes in the game.
-
 ## Features
 
 ### Blender
