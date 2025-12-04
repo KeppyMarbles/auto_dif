@@ -13,7 +13,7 @@ In PQ, hit the `Connect Blender` button in the editor.
 
 ### Constructor
 
-Navigate to your Constructor installation, and place [csx3dif.exe](https://github.com/RandomityGuy/csx3dif/releases) in the root directory. Then place `autodif.cs` in the `plug-ins` folder.
+Navigate to your Constructor installation, and place [csx3dif.exe](https://github.com/RandomityGuy/csx3dif/releases) in the root directory. Then make sure you have [my Constructor plugins](https://github.com/KeppyMarbles/kepstructor). You technically only need `autodif.cs` but I recommend installing them all.
 
 Open Constructor and save or open a scene. Then click the `Auto DIF` plugin box (found in User tab), and set your desired interiors folder. 
 
