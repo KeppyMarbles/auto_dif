@@ -1,5 +1,5 @@
 # auto_dif
-Solution to hot reloading of Interiors in Marble Blast. Uses local TCP to connect with Blender or Constructor.
+Hot reload Interiors in Marble Blast. Uses local TCP to communicate with Blender or Constructor.
 
 ## Setup
 
