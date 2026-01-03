@@ -11,6 +11,8 @@ Ensure the latest [io_dif](https://github.com/RandomityGuy/io_dif) is installed,
 
 In PQ, hit the `Connect Blender` button in the editor.
 
+**Note**: You may need to zip the auto_dif folder so that Blender will import it in the menu. Otherwise you can just move it into the addons folder directly (`scripts/addons_core`).
+
 ### Constructor
 
 Navigate to your Constructor installation, and place [csx3dif.exe](https://github.com/RandomityGuy/csx3dif/releases) in the root directory. Then make sure you have [my Constructor plugins](https://github.com/KeppyMarbles/kepstructor). You technically only need `autodif.cs` but I recommend installing them all.
