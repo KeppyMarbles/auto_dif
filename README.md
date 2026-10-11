@@ -7,7 +7,7 @@ Hot reload Interiors in Marble Blast. Uses local TCP to communicate with Blender
 ### Blender
 Supported versions: 4.x
 
-Ensure the latest [io_dif](https://github.com/RandomityGuy/io_dif) is installed, then install this repo's add-on (the `auto_dif` folder). Then navigate to `Scene Properties` > `AutoDIF Settings` > `Export Directory` and choose your desired interiors folder.
+Ensure the latest [io_dif](https://github.com/RandomityGuy/io_dif) is installed, then install this repo's [add-on](https://github.com/KeppyMarbles/auto_dif/releases/download/v1.0/auto_dif.zip). Then navigate to `Scene Properties` > `AutoDIF Settings` > `Export Directory` and choose your desired interiors folder.
 
 In PQ, hit the `Connect Blender` button in the editor.
 
